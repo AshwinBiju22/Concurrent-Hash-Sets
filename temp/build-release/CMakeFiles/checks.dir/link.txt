@@ -1,0 +1,2 @@
+/usr/bin/llvm-ar-21 qc libchecks.a CMakeFiles/checks.dir/src/checks/standalone_coarse_grained.cc.o CMakeFiles/checks.dir/src/checks/standalone_refinable.cc.o CMakeFiles/checks.dir/src/checks/standalone_sequential.cc.o CMakeFiles/checks.dir/src/checks/standalone_striped.cc.o CMakeFiles/checks.dir/src/checks/all.cc.o
+/usr/bin/llvm-ranlib-21 libchecks.a

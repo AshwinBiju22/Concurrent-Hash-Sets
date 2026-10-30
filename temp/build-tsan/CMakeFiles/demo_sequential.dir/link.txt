@@ -1,0 +1,1 @@
+/usr/bin/clang++-21 -stdlib=libc++ -g -fsanitize=thread CMakeFiles/demo_sequential.dir/src/benchmark.cc.o CMakeFiles/demo_sequential.dir/src/demo_sequential.cc.o -o demo_sequential 

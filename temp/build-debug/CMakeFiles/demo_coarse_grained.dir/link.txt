@@ -1,0 +1,1 @@
+/usr/bin/clang++-21 -stdlib=libc++ -g CMakeFiles/demo_coarse_grained.dir/src/benchmark.cc.o CMakeFiles/demo_coarse_grained.dir/src/demo_coarse_grained.cc.o -o demo_coarse_grained 

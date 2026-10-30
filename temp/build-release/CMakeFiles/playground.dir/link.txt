@@ -1,0 +1,1 @@
+/usr/bin/clang++-21 -stdlib=libc++ -O3 -march=native -flto CMakeFiles/playground.dir/src/playground.cc.o -o playground 
