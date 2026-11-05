@@ -14,8 +14,9 @@ template <typename T>
 class HashSetStriped : public HashSetBase<T> {
  public:
   explicit HashSetStriped(size_t initial_capacity)
-      : table_(initial_capacity), set_size_(0) {
-    for (size_t i = 0; i < initial_capacity; ++i) {
+      // Ensuring that initial_capacity can't be 0
+      : table_(std::max<size_t>(initial_capacity, 1)), set_size_(0) {
+    for (size_t i = 0; i < table_.size(); ++i) {
       locks_.push_back(std::make_unique<std::mutex>());
     }
   }

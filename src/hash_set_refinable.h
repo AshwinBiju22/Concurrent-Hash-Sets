@@ -15,8 +15,9 @@ template <typename T>
 class HashSetRefinable : public HashSetBase<T> {
  public:
   explicit HashSetRefinable(size_t initial_capacity)
-      : table_(initial_capacity),
-        locks_(MakeLocks(initial_capacity)),
+      // Ensuring that initial_capacity can't be 0
+      : table_(std::max<size_t>(initial_capacity, 1)),
+        locks_(MakeLocks(table_.size())),
         set_size_(0),
         resizing_(false) {}
 

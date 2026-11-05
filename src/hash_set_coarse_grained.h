@@ -2,6 +2,7 @@
 #define HASH_SET_COARSE_GRAINED_H
 
 #include <algorithm>
+#include <atomic>
 #include <functional>
 #include <mutex>
 #include <vector>
@@ -12,7 +13,8 @@ template <typename T>
 class HashSetCoarseGrained : public HashSetBase<T> {
  public:
   explicit HashSetCoarseGrained(size_t initial_capacity)
-      : table_(initial_capacity), set_size_(0) {}
+      // Ensuring that initial_capacity can't be 0
+      : table_(std::max<size_t>(initial_capacity, 1)), set_size_(0) {}
 
   bool Add(T elem) final {
     // Holds the global lock throughout insertion and any resizing
@@ -64,17 +66,15 @@ class HashSetCoarseGrained : public HashSetBase<T> {
     return std::find(bucket.begin(), bucket.end(), elem) != bucket.end();
   }
 
-  [[nodiscard]] size_t Size() const final {
-    std::scoped_lock lock(m_);
-    return set_size_;
-  }
+  [[nodiscard]] size_t Size() const final { return set_size_; }
 
  private:
   std::vector<std::vector<T>> table_;
-  size_t set_size_;
+  // Atomic needed to synchronise race conditions when reading/writing the size
+  std::atomic<size_t> set_size_;
   // Single global mutex ensures that only one operation can access the set at a
-  // time. Mutable allows const operations such as Size() to acquire the lock
-  mutable std::mutex m_;
+  // time.
+  std::mutex m_;
 
   [[nodiscard]] size_t GetBucketIndex(const T& elem) const {
     return std::hash<T>()(elem) % table_.size();
