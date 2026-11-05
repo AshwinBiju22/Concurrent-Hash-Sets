@@ -14,8 +14,10 @@ template <typename T>
 class HashSetStriped : public HashSetBase<T> {
  public:
   explicit HashSetStriped(size_t initial_capacity)
-      // Ensuring that initial_capacity can't be 0
+      // Clamp to >= 1 bucket, since capacity 0 would make % table_.size()
+      // divide by zero
       : table_(std::max<size_t>(initial_capacity, 1)), set_size_(0) {
+    // table_ is declared first so we can use its clamped size for locks_
     for (size_t i = 0; i < table_.size(); ++i) {
       locks_.push_back(std::make_unique<std::mutex>());
     }
@@ -28,7 +30,8 @@ class HashSetStriped : public HashSetBase<T> {
     bool should_resize = false;
 
     // Introduce new scope so stripe can be locked
-    // and prevent deadlock when calling Resize()
+    // and prevent deadlock when calling Resize() as it is called after this
+    // scope
     {
       // Lock only the relevant stripe, allowing operations on
       // different stripes to happen concurrently.
@@ -94,6 +97,8 @@ class HashSetStriped : public HashSetBase<T> {
 
  private:
   std::vector<std::vector<T>> table_;
+  // std::mutex can't be copied or moved, so using unique_ptr
+  // lets us build our locks vector.
   std::vector<std::unique_ptr<std::mutex>> locks_;
   // Atomic counter needed as different stripe locks
   // allow multiple threads to update the set simultaneously
@@ -103,6 +108,9 @@ class HashSetStriped : public HashSetBase<T> {
     // Acquire all stripe locks in a consistent order to prevent
     // concurrent bucket operations while the table is rehashed,
     // and prevents deadlock between competing resize operations
+    // scoped_lock needs a compile-time list of mutexes; unique_lock is movable,
+    // so a vector holds a runtime number of locks, all released by RAII on
+    // return
     std::vector<std::unique_lock<std::mutex>> guards;
 
     for (auto& mutex : locks_) {

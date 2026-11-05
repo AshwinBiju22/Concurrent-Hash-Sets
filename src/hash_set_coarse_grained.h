@@ -13,12 +13,15 @@ template <typename T>
 class HashSetCoarseGrained : public HashSetBase<T> {
  public:
   explicit HashSetCoarseGrained(size_t initial_capacity)
-      // Ensuring that initial_capacity can't be 0
+      // Clamp to >= 1 bucket, since capacity 0 would make % table_.size()
+      // divide by zero
       : table_(std::max<size_t>(initial_capacity, 1)), set_size_(0) {}
 
   bool Add(T elem) final {
     // Holds the global lock throughout insertion and any resizing
     // so no other thread can access the table while it is rehashed.
+    // scoped_lock follows RAII which replaces the try/finally and
+    // acquire/release blocks in the book
     std::scoped_lock lock(m_);
 
     const size_t my_bucket = GetBucketIndex(elem);
@@ -65,12 +68,12 @@ class HashSetCoarseGrained : public HashSetBase<T> {
 
     return std::find(bucket.begin(), bucket.end(), elem) != bucket.end();
   }
-
+  // Lock free atomic read avoids a mutable mutex in a const method
   [[nodiscard]] size_t Size() const final { return set_size_; }
 
  private:
   std::vector<std::vector<T>> table_;
-  // Atomic needed to synchronise race conditions when reading/writing the size
+  // Atomic only because Size() reads it without m_,  all writes happen under m_
   std::atomic<size_t> set_size_;
   // Single global mutex ensures that only one operation can access the set at a
   // time.

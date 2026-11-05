@@ -15,7 +15,8 @@ template <typename T>
 class HashSetRefinable : public HashSetBase<T> {
  public:
   explicit HashSetRefinable(size_t initial_capacity)
-      // Ensuring that initial_capacity can't be 0
+      // Clamp to >= 1 bucket, since capacity 0 would make % table_.size()
+      // divide by zero
       : table_(std::max<size_t>(initial_capacity, 1)),
         locks_(MakeLocks(table_.size())),
         set_size_(0),
@@ -83,6 +84,8 @@ class HashSetRefinable : public HashSetBase<T> {
 
  private:
   using MutexArray = std::vector<std::unique_ptr<std::mutex>>;
+  // Book uses a volatile array and relies on Java's GC to free old ones but C++
+  // has no GC so shared_ptr reference counting helps here
   using MutexArrayPtr = std::shared_ptr<MutexArray>;
 
   // Keeps the lock array alive until its bucket lock is released
@@ -104,6 +107,9 @@ class HashSetRefinable : public HashSetBase<T> {
 
   // Only one thread can resize at a time
   // Other operations wait until new table and lock array is ready
+  // In the book the owner records the resizing thread because its resize() re
+  // adds items via a initializeFrom() -> add() -> acquire() chain but ours
+  // never calls Acquire(), so a bool suffices
   std::atomic<bool> resizing_;
 
   static MutexArrayPtr MakeLocks(size_t count) {
@@ -146,8 +152,9 @@ class HashSetRefinable : public HashSetBase<T> {
   }
 
   // Once resizing_ is true, new operations cannot successfully pass Acquire()
-  // Locking and releasing each old mutex ensures previously admitted operations
-  // have finished
+  // Book spins on lock.isLocked() but std::mutex has no isLocked(), so locking
+  // and releasing each old mutex ensures previously admitted operations have
+  // finished
   void Quiesce(const MutexArrayPtr& mutexes) {
     for (auto& mutex : *mutexes) {
       std::scoped_lock lock(*mutex);
@@ -188,6 +195,8 @@ class HashSetRefinable : public HashSetBase<T> {
       }
     } catch (...) {
       // Don't leave the set permanently blocked errors during resizing
+      // C++ has no finally block like in the book so clear resizing_ here and
+      // rethrow
       resizing_.store(false);
       throw;
     }

@@ -11,7 +11,8 @@ template <typename T>
 class HashSetSequential : public HashSetBase<T> {
  public:
   explicit HashSetSequential(size_t initial_capacity)
-      // Ensuring that initial_capacity can't be 0
+      // Clamp to >= 1 bucket, since capacity 0 would make % table_.size()
+      // divide by zero
       : table_(std::max<size_t>(initial_capacity, 1)), set_size_(0) {}
 
   bool Add(T elem) final {
